@@ -20,8 +20,7 @@ Proiectul a fost realizat de următoarea echipă, cu roluri bine definite pe com
 | **Miron Tudor** | **VR Interaction Core:** Dezvoltarea mecanicii de bază de *Grab* (prindere) și a altor funcționalități esențiale de interacțiune în spațiul virtual. |
 | **Ciobanu Matei** | **Scene Prototyping & Level Design:** Crearea structurii inițiale și a prototipului vizual al scenei (poziționare asset-uri, configurare spațială). |
 | **Moraru Otilia-Gabriela** | **Arhitectură și Diagramare:** Documentarea structurii software prin diagrame de sistem/flux și elaborarea specificațiilor arhitecturale. |
-| **[Numele Dvs.]** | **Documentație Strategică & Logica Centrală:** Redactarea analizei *State of Art* și implementarea logicii din modulul principal (*Main Module*). |
-| **Nechita Teodora** | **Integrare și Testare (QA):** Asigurarea coerenței modulelor, testarea funcționalităților implementate și optimizarea generală. |
+| **Nechita Teodora** | **Documentație Strategică & Logica Centrală:** Redactarea analizei *State of Art* și implementarea logicii din modulul principal (*Main Module*). |
 
 ##  Documentație Suplimentară
 
