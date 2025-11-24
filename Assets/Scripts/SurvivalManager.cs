@@ -108,5 +108,17 @@ public class SurvivalManager : MonoBehaviour
     void TriggerGameOver(string reason)
     {
         Debug.Log($"Game Over! You collapsed from {reason} exhaustion.");
+        
+        if (GameOverManager.Instance != null && InventoryManager.Instance != null)
+        {
+            GameOverManager.Instance.ShowGameOver(
+                reason,
+                InventoryManager.Instance.GetStickCount(),
+                InventoryManager.Instance.GetStoneCount(),
+                InventoryManager.Instance.GetFoodCount(),
+                InventoryManager.Instance.GetWaterCount(),
+                InventoryManager.Instance.GetCraftedItemsCount()
+            );
+        }
     }
 }

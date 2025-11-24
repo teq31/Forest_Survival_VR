@@ -39,6 +39,7 @@ public class InventoryManager : MonoBehaviour
     private int stoneCount = 0;
     private int foodCount = 0;
     private int waterCount = 0;
+    private int craftedItemsCount = 0;
 
     private CollectibleItem currentItem;
 
@@ -234,6 +235,7 @@ public class InventoryManager : MonoBehaviour
         }
         stickCount -= CAMPFIRE_STICKS_REQUIRED;
         stoneCount -= CAMPFIRE_STONES_REQUIRED;
+        craftedItemsCount++;
         UpdateInventoryUI();
         Instantiate(campfirePrefab, campfireSpawnPoint.position, campfireSpawnPoint.rotation);
         Debug.Log("Campfire craftuit cu succes!");
@@ -253,9 +255,16 @@ public class InventoryManager : MonoBehaviour
         }
         stickCount -= TORCH_STICKS_REQUIRED;
         stoneCount -= TORCH_STONES_REQUIRED;
+        craftedItemsCount++;
         UpdateInventoryUI();
         GameObject torchInstance = Instantiate(torchPrefab, torchHandPoint.position, torchHandPoint.rotation);
         torchInstance.transform.SetParent(torchHandPoint, true);
         Debug.Log("Torch craftuită și pusă în mână!");
     }
+
+    public int GetStickCount() { return stickCount; }
+    public int GetStoneCount() { return stoneCount; }
+    public int GetFoodCount() { return foodCount; }
+    public int GetWaterCount() { return waterCount; }
+    public int GetCraftedItemsCount() { return craftedItemsCount; }
 }
