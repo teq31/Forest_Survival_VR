@@ -14149,7 +14149,7 @@ MonoBehaviour:
   craftTorchButton: {fileID: 1247833497}
   drinkButton: {fileID: 1487250765}
   eatButton: {fileID: 744698585}
-  campfirePrefab: {fileID: 7834674530376931431, guid: 5c7655b038be8654cbdc6eed46af55d5, type: 3}
+  campfirePrefab: {fileID: 919132149155446097, guid: be279243c1df9274bbdf7ab7fbf6b890, type: 3}
   campfireSpawnPoint: {fileID: 1975873387}
   torchPrefab: {fileID: 3126530126364303578, guid: b580048e86921914397b5862dab97502, type: 3}
   torchHandPoint: {fileID: 1182034144}
