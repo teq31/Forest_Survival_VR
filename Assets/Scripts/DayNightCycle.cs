@@ -4,9 +4,16 @@ using TMPro;
 public class DayNightCycle : MonoBehaviour
 {
     public enum TimeState { Day, Dusk, Night, Dawn }
+    
+    // Proprietate publică pentru a permite accesul altor scripturi (ex: WeatherManager) la starea curentă
+    public TimeState CurrentTimeState => currentState;
+    
+    [Tooltip("Progresul total al ciclului (0.0 = Miezul Nopții, 0.5 = Miezul Zilei)")]
+    public float timeOfDay { get; private set; } = 0f; 
 
     
     [Header("Skybox Materials")]
+    // Notă: Aceste materiale trebuie să suporte shader-ul "Blended Skybox" sau "Procedural Sky"
     public Material daySkybox; 
     public Material nightSkybox; 
     public Material duskSkybox;  
@@ -29,13 +36,14 @@ public class DayNightCycle : MonoBehaviour
     private float timeElapsedInPhase = 0f;
     private float fullPhaseDuration; 
     private float transitionPhaseDuration; 
+    private float totalDurationSeconds;
 
     private float dayIntensity = 1f;
     private float nightIntensity = 0.1f;
 
     void Start()
     {
-        float totalDurationSeconds = cycleDurationMinutes * 60f;
+        totalDurationSeconds = cycleDurationMinutes * 60f;
         
         fullPhaseDuration = totalDurationSeconds * fullPhaseRatio;
         
@@ -50,9 +58,14 @@ public class DayNightCycle : MonoBehaviour
         
         float currentPhaseDuration = GetCurrentPhaseDuration(currentState);
 
-        RotateLight(currentPhaseDuration);
+        // Calculează progresul total (0.0 la 1.0)
+        timeOfDay = Mathf.Repeat(Time.time / totalDurationSeconds, 1f);
+        
+        HandleSkyboxBlending(); 
+        RotateLightGlobal(); 
         UpdateTimer(currentPhaseDuration);
 
+        // Verifică tranziția de fază
         if (timeElapsedInPhase >= currentPhaseDuration)
         {
             SwitchPhase(GetNextState(currentState));
@@ -64,36 +77,80 @@ public class DayNightCycle : MonoBehaviour
         currentState = newState;
         timeElapsedInPhase = 0f;
         
-        switch (currentState)
+        // **IMPORTANT**: Nu mai setăm Skybox sau Intensitatea aici. 
+        // Acestea sunt gestionate constant și lin de HandleSkyboxBlending() și RotateLightGlobal().
+    }
+    
+    // Gestionează schimbarea Skybox-ului lin și setează materialul de bază pentru fazele pline.
+    void HandleSkyboxBlending()
+    {
+        if (currentState == TimeState.Day)
         {
-            case TimeState.Day:
-                RenderSettings.skybox = daySkybox;
-                directionalLight.intensity = dayIntensity;
-                directionalLight.transform.rotation = Quaternion.Euler(50f, -30f, 0f); 
-                break;
-                
-            case TimeState.Dusk:
+            // Faza Plină de Zi (fără blending)
+            RenderSettings.skybox = daySkybox;
+            if (RenderSettings.skybox != null) RenderSettings.skybox.SetFloat("_Blend", 0f); 
+            DynamicGI.UpdateEnvironment(); 
+        }
+        else if (currentState == TimeState.Night)
+        {
+            // Faza Plină de Noapte (fără blending)
+            RenderSettings.skybox = nightSkybox;
+            if (RenderSettings.skybox != null) RenderSettings.skybox.SetFloat("_Blend", 0f);
+            DynamicGI.UpdateEnvironment(); 
+        }
+        else if (currentState == TimeState.Dusk || currentState == TimeState.Dawn)
+        {
+            // Faza de tranziție (blending)
+            float blendRatio = timeElapsedInPhase / transitionPhaseDuration;
+
+            // Setează materialul de tranziție
+            if (currentState == TimeState.Dusk)
+            {
                 RenderSettings.skybox = duskSkybox; 
-                directionalLight.intensity = (dayIntensity + nightIntensity) / 2f; 
-                break;
-                
-            case TimeState.Night:
-                RenderSettings.skybox = nightSkybox;
-                directionalLight.intensity = nightIntensity;
-                directionalLight.transform.rotation = Quaternion.Euler(150f, 150f, 0f); 
-                break;
-                
-            case TimeState.Dawn:
-                RenderSettings.skybox = dawnSkybox; 
-                directionalLight.intensity = (dayIntensity + nightIntensity) / 2f; 
-                break;
+            }
+            else // Dawn
+            {
+                RenderSettings.skybox = dawnSkybox;
+            }
+            
+            // Aplică blending-ul (asigură-te că materialul are proprietatea _Blend)
+            if (RenderSettings.skybox != null) RenderSettings.skybox.SetFloat("_Blend", blendRatio); 
+            
+            // Asigură-te că Unity actualizează imediat setările
+            DynamicGI.UpdateEnvironment(); 
         }
     }
 
-    void RotateLight(float phaseDuration)
+
+    // Rotație bazată pe progresul total al timpului (0 la 1) și controlul intensității
+    void RotateLightGlobal()
     {
-        float rotationAmount = (Time.deltaTime / phaseDuration) * 90f; 
-        directionalLight.transform.Rotate(Vector3.up, rotationAmount, Space.World);
+        // Calculează unghiul total de rotație (360 de grade pe parcursul ciclului)
+        float angle = timeOfDay * 360f; 
+        
+        // Rotește lumina pe axa X pentru a simula mișcarea pe cer (răsărit/apus)
+        directionalLight.transform.localRotation = Quaternion.Euler(
+            angle, 
+            directionalLight.transform.localRotation.eulerAngles.y,
+            directionalLight.transform.localRotation.eulerAngles.z
+        );
+        
+        // Ajustează intensitatea luminii lin în timpul tranzițiilor (Fără setări fixe din SwitchPhase)
+        float sunAngle = directionalLight.transform.localRotation.eulerAngles.x;
+        
+        // Dacă soarele este între 90 și 270 de grade (sub orizont)
+        if (sunAngle > 90f && sunAngle < 270f)
+        {
+             // Calculează cât de "întunecat" trebuie să fie (0 la 1)
+             float darkRatio = Mathf.InverseLerp(90f, 270f, sunAngle);
+             // Interpolează intensitatea de la Zi la Noapte
+             directionalLight.intensity = Mathf.Lerp(dayIntensity, nightIntensity, darkRatio);
+        }
+        else
+        {
+            // Zi Plină (Soarele sus pe cer)
+            directionalLight.intensity = dayIntensity;
+        }
     }
 
     float GetCurrentPhaseDuration(TimeState state)
@@ -129,9 +186,9 @@ public class DayNightCycle : MonoBehaviour
         string phaseName = currentState.ToString();
         
         string durationLabel = (currentState == TimeState.Dusk || currentState == TimeState.Dawn) 
-            ? $"Transition Duration: {transitionPhaseDuration:F1} seconds"
-            : $"Full Phase Duration: {fullPhaseDuration:F1} seconds";
+            ? $"Tranzitie: {transitionPhaseDuration:F1} secunde"
+            : $"Faza Completa: {fullPhaseDuration:F1} secunde";
 
-        timerText.text = $"Phase: {phaseName}\n{durationLabel}\nRemaining: {minutes:00}:{seconds:00}";
+        timerText.text = $"Faza: {phaseName}\n{durationLabel}\nRamase: {minutes:00}:{seconds:00}\nProgres: {timeOfDay:F2}";
     }
 }
