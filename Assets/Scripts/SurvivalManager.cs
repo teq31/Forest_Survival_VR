@@ -29,6 +29,8 @@ public class SurvivalManager : MonoBehaviour
     [Header("Conditii Joc")]
     public bool isNight = true; // Setat pe true pentru a testa degradarea initiala
 
+    private bool isGameOver = false; // Previne apelari multiple de Game Over
+
     void Start()
     {
         SetMaxValues();
@@ -45,6 +47,8 @@ public class SurvivalManager : MonoBehaviour
 
     void Update()
     {
+        if (isGameOver) return; // Opreste update-urile daca jocul s-a terminat
+
         // 1. Degradarea continua
         currentHunger -= hungerRate * Time.deltaTime;
         currentThirst -= thirstRate * Time.deltaTime;
@@ -107,18 +111,30 @@ public class SurvivalManager : MonoBehaviour
 
     void TriggerGameOver(string reason)
     {
+        if (isGameOver) return; // Previne apelari multiple
+        isGameOver = true;
+
         Debug.Log($"Game Over! You collapsed from {reason} exhaustion.");
         
-        if (GameOverManager.Instance != null && InventoryManager.Instance != null)
+        if (GameManager.Instance == null)
         {
-            GameOverManager.Instance.ShowGameOver(
-                reason,
-                InventoryManager.Instance.GetStickCount(),
-                InventoryManager.Instance.GetStoneCount(),
-                InventoryManager.Instance.GetFoodCount(),
-                InventoryManager.Instance.GetWaterCount(),
-                InventoryManager.Instance.GetCraftedItemsCount()
-            );
+            Debug.LogError("GameManager.Instance is NULL! Asigura-te ca GameManager exista in scena.");
+            return;
         }
+        
+        if (InventoryManager.Instance == null)
+        {
+            Debug.LogError("InventoryManager.Instance is NULL!");
+            return;
+        }
+
+        GameManager.Instance.ShowGameOver(
+            reason,
+            InventoryManager.Instance.GetStickCount(),
+            InventoryManager.Instance.GetStoneCount(),
+            InventoryManager.Instance.GetFoodCount(),
+            InventoryManager.Instance.GetWaterCount(),
+            InventoryManager.Instance.GetCraftedItemsCount()
+        );
     }
 }

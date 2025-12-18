@@ -47,8 +47,17 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        // La pornirea scenei, afiseaza meniul de start
-        ShowStartMenu();
+        // Daca nu exista meniu de start, porneste jocul direct
+        if (startMenuPanel == null)
+        {
+            Debug.LogWarning("[GameManager] Start Menu Panel is NULL, starting game directly!");
+            StartGame();
+        }
+        else
+        {
+            // La pornirea scenei, afiseaza meniul de start
+            ShowStartMenu();
+        }
     }
 
     private void Update()
@@ -104,15 +113,38 @@ public class GameManager : MonoBehaviour
 
     public void ShowGameOver(string reason, int sticks, int stones, int food, int water, int craftedItems)
     {
-        if (!isGameActive) return; // Previni apelarea multipla
+        Debug.Log($"[GameManager] ShowGameOver called with reason: {reason}");
+        
+        if (!isGameActive) 
+        {
+            Debug.LogWarning("[GameManager] Game is not active, ignoring ShowGameOver call");
+            return; 
+        }
 
         isGameActive = false;
+        Debug.Log("[GameManager] Setting Time.timeScale to 0");
         Time.timeScale = 0f;
 
-        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        if (gameOverPanel != null) 
+        {
+            Debug.Log("[GameManager] Activating gameOverPanel");
+            gameOverPanel.SetActive(true);
+        }
+        else
+        {
+            Debug.LogError("[GameManager] gameOverPanel is NULL! Connect it in Inspector!");
+        }
 
         string message = GetDeathMessage(reason);
-        if (deathMessageText != null) deathMessageText.text = message;
+        if (deathMessageText != null) 
+        {
+            deathMessageText.text = message;
+            Debug.Log($"[GameManager] Death message set: {message}");
+        }
+        else
+        {
+            Debug.LogWarning("[GameManager] deathMessageText is NULL!");
+        }
 
         int minutes = Mathf.FloorToInt(survivalTime / 60f);
         int seconds = Mathf.FloorToInt(survivalTime % 60f);
@@ -121,9 +153,17 @@ public class GameManager : MonoBehaviour
         stats += $"Resources: {sticks} sticks, {stones} stones, {food} food, {water} water\n";
         stats += $"Crafted Items: {craftedItems}";
 
-        if (statsText != null) statsText.text = stats;
+        if (statsText != null) 
+        {
+            statsText.text = stats;
+            Debug.Log($"[GameManager] Stats set: {stats}");
+        }
+        else
+        {
+            Debug.LogWarning("[GameManager] statsText is NULL!");
+        }
 
-        Debug.Log($"Game Over! Reason: {reason}");
+        Debug.Log($"[GameManager] Game Over complete! Reason: {reason}");
     }
 
     private string GetDeathMessage(string reason)
