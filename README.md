@@ -26,5 +26,5 @@ Proiectul a fost realizat de următoarea echipă, cu roluri bine definite pe com
 
 * [https://docs.google.com/document/d/14iFpWUg05lF1kc52xuCI63Ca6d-JESOeMyTYzfmikAM/edit?usp=sharing]
 * [https://docs.google.com/document/d/1nUlk85s6ODGDJU721Wm-22t56S6MYTzsFxipKumzwsE/edit?usp=sharing]
-* [https://drive.google.com/drive/home?dmr=1&ec=wgc-drive-globalnav-goto]
+* [https://docs.google.com/document/d/1bwrWWw9pEnVD6ZV1QbxX98RrN-6tb8dt2pJ-IY57Sn4/edit?tab=t.0]
   
