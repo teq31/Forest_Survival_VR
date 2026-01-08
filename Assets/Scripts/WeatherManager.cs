@@ -2,19 +2,14 @@ using UnityEngine;
 
 public class WeatherManager : MonoBehaviour
 {
-    // Asigură-te că DayNightCycle este atașat aici!
     [Header("Day/Night Integration")]
-    [Tooltip("Referința la scriptul de ciclu zi/noapte pentru a citi starea curentă.")]
     public DayNightCycle dayNightCycle; 
     
     [Header("Visual Effects")]
-    [Tooltip("Obiectul Particle System al ploii (copil al Main Camera, dezactivat inițial).")]
     public GameObject rainParticleSystem; 
     
     [Header("Audio Sources")]
-    [Tooltip("Audio Source-ul pentru sunetele ambientale (2D).")]
     public AudioSource ambianceSource;
-    [Tooltip("Audio Source-ul pentru sunetul de ploaie (2D).")]
     public AudioSource rainSoundSource; 
 
     [Header("Audio Clips")]
@@ -23,27 +18,15 @@ public class WeatherManager : MonoBehaviour
     public AudioClip rainLoop; 
 
     private bool isRaining = false;
-    private ParticleSystem rainParticles; // Referință la componenta ParticleSystem
+    private ParticleSystem rainParticles;
 
-    
     void Start()
     {
-        // 1. Obține componenta ParticleSystem și oprește-o la start
         if (rainParticleSystem != null) 
         {
-            // Presupune că ParticleSystem este atașat la GameObject-ul rainParticleSystem
             rainParticles = rainParticleSystem.GetComponent<ParticleSystem>();
-            
-            rainParticleSystem.SetActive(false); // Dezactivează GameObject-ul
-
-            if (rainParticles != null)
-            {
-                // Oprește imediat emisia și curăță particulele deja emise (pentru a preveni glich-urile)
-                rainParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            }
         }
 
-        // 2. Setează și pornește sunetul de ambient (Zi inițial)
         if (ambianceSource != null && dayAmbiance != null)
         {
             ambianceSource.clip = dayAmbiance;
@@ -51,7 +34,6 @@ public class WeatherManager : MonoBehaviour
             ambianceSource.Play();
         }
 
-        // 3. Setează sunetul de ploaie (mute inițial)
         if (rainSoundSource != null && rainLoop != null)
         {
             rainSoundSource.clip = rainLoop;
@@ -60,15 +42,15 @@ public class WeatherManager : MonoBehaviour
             rainSoundSource.Play();
         }
         
-        // 4. Asigură că ceața globală este dezactivată la începutul zilei
         RenderSettings.fog = false;
+        
+        SetRainActive(false);
     }
 
     void Update()
     {
         if (dayNightCycle == null) return;
 
-        // Citește starea curentă direct din DayNightCycle
         DayNightCycle.TimeState state = dayNightCycle.CurrentTimeState; 
         
         HandleAmbianceSwitch(state);
@@ -77,7 +59,6 @@ public class WeatherManager : MonoBehaviour
     
     void HandleAmbianceSwitch(DayNightCycle.TimeState state)
     {
-        // Treci la sunetul de Noapte în fazele Dusk și Night
         if (state == DayNightCycle.TimeState.Night || state == DayNightCycle.TimeState.Dusk) 
         {
             if (ambianceSource.clip != nightAmbiance && nightAmbiance != null)
@@ -86,7 +67,6 @@ public class WeatherManager : MonoBehaviour
                 ambianceSource.Play();
             }
         }
-        // Treci la sunetul de Zi în fazele Day și Dawn
         else 
         {
             if (ambianceSource.clip != dayAmbiance && dayAmbiance != null)
@@ -99,49 +79,41 @@ public class WeatherManager : MonoBehaviour
 
     void HandleWeather(DayNightCycle.TimeState state)
     {
-        // Ploaia și Ceața se activează în fazele de tranziție (Dusk) și Noapte
-        if (state == DayNightCycle.TimeState.Dusk || state == DayNightCycle.TimeState.Night) 
+        bool shouldRain = (state == DayNightCycle.TimeState.Night);
+
+        if (shouldRain && !isRaining)
         {
-            if (!isRaining)
-            {
-                // Activează ploaia, sunetul și ceața
-                SetRainActive(true);
-                RenderSettings.fog = true; 
-            }
+            SetRainActive(true);
         }
-        else // Oprește ploaia în Dawn și Day
+        else if (!shouldRain && isRaining)
         {
-            if (isRaining)
-            {
-                // Dezactivează ploaia, sunetul și ceața
-                SetRainActive(false);
-                RenderSettings.fog = false; 
-            }
+            SetRainActive(false);
         }
     }
 
     void SetRainActive(bool active)
     {
         isRaining = active;
-        
-        if (rainParticleSystem != null)
-            rainParticleSystem.SetActive(active); // Activează/dezactivează vizualul
+        RenderSettings.fog = active;
 
-        // Controlează emisia particulelor
         if (rainParticles != null)
         {
             if (active)
             {
-                rainParticles.Play(); // Pornește emisia
+                var emission = rainParticles.emission;
+                emission.enabled = true;
+                rainParticles.Clear();
+                rainParticles.Play();
             }
             else
             {
-                // Oprește emisia și curăță particulele rămase
-                rainParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear); 
+                var emission = rainParticles.emission;
+                emission.enabled = false;
+                rainParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
         }
-        
-        // Volumul 0.6 pentru activ (se aude), 0 pentru dezactivat (silent)
-        rainSoundSource.volume = active ? 0.6f : 0f;
+    
+        if (rainSoundSource != null)
+            rainSoundSource.volume = active ? 0.6f : 0f;
     }
 }
