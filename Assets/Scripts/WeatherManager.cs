@@ -2,20 +2,22 @@ using UnityEngine;
 
 public class WeatherManager : MonoBehaviour
 {
-    [Header("Day/Night Integration")]
+    [Header("Integrari")]
     public DayNightCycle dayNightCycle; 
+    public SurvivalManager survivalManager; 
     
-    [Header("Visual Effects")]
+    [Header("Efecte si Audio")]
     public GameObject rainParticleSystem; 
-    
-    [Header("Audio Sources")]
     public AudioSource ambianceSource;
     public AudioSource rainSoundSource; 
 
-    [Header("Audio Clips")]
+    [Header("Clipuri")]
     public AudioClip dayAmbiance; 
     public AudioClip nightAmbiance; 
     public AudioClip rainLoop; 
+
+    [Header("Setari Stres")]
+    public float minCalmForRain = 75f;
 
     private bool isRaining = false;
     private ParticleSystem rainParticles;
@@ -25,6 +27,14 @@ public class WeatherManager : MonoBehaviour
         if (rainParticleSystem != null) 
         {
             rainParticles = rainParticleSystem.GetComponent<ParticleSystem>();
+            rainParticleSystem.SetActive(true); 
+
+            if (rainParticles != null)
+            {
+                var emission = rainParticles.emission;
+                emission.enabled = false;
+                rainParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
         }
 
         if (ambianceSource != null && dayAmbiance != null)
@@ -43,13 +53,11 @@ public class WeatherManager : MonoBehaviour
         }
         
         RenderSettings.fog = false;
-        
-        SetRainActive(false);
     }
 
     void Update()
     {
-        if (dayNightCycle == null) return;
+        if (dayNightCycle == null || survivalManager == null) return;
 
         DayNightCycle.TimeState state = dayNightCycle.CurrentTimeState; 
         
@@ -59,33 +67,30 @@ public class WeatherManager : MonoBehaviour
     
     void HandleAmbianceSwitch(DayNightCycle.TimeState state)
     {
-        if (state == DayNightCycle.TimeState.Night || state == DayNightCycle.TimeState.Dusk) 
+        AudioClip targetClip = (state == DayNightCycle.TimeState.Night || state == DayNightCycle.TimeState.Dusk) ? nightAmbiance : dayAmbiance;
+
+        if (ambianceSource != null && ambianceSource.clip != targetClip)
         {
-            if (ambianceSource.clip != nightAmbiance && nightAmbiance != null)
-            {
-                ambianceSource.clip = nightAmbiance;
-                ambianceSource.Play();
-            }
-        }
-        else 
-        {
-            if (ambianceSource.clip != dayAmbiance && dayAmbiance != null)
-            {
-                ambianceSource.clip = dayAmbiance;
-                ambianceSource.Play();
-            }
+            ambianceSource.clip = targetClip;
+            ambianceSource.Play();
         }
     }
 
     void HandleWeather(DayNightCycle.TimeState state)
     {
-        bool shouldRain = (state == DayNightCycle.TimeState.Night);
+        bool isNight = (state == DayNightCycle.TimeState.Night);
+        
+        // Ploaia porneste doar daca jucatorul este CALM (peste 75)
+        // Daca scade sub 75 (incepe sa se panicheze), ploaia se opreste
+        bool isCalm = (survivalManager.currentPanic >= minCalmForRain);
 
-        if (shouldRain && !isRaining)
+        bool shouldRainNow = isNight && isCalm;
+
+        if (shouldRainNow && !isRaining)
         {
             SetRainActive(true);
         }
-        else if (!shouldRain && isRaining)
+        else if (!shouldRainNow && isRaining)
         {
             SetRainActive(false);
         }
@@ -98,22 +103,22 @@ public class WeatherManager : MonoBehaviour
 
         if (rainParticles != null)
         {
+            var emission = rainParticles.emission;
+            emission.enabled = active;
+
             if (active)
             {
-                var emission = rainParticles.emission;
-                emission.enabled = true;
-                rainParticles.Clear();
-                rainParticles.Play();
+                if (!rainParticles.isPlaying) rainParticles.Play(true);
             }
             else
             {
-                var emission = rainParticles.emission;
-                emission.enabled = false;
                 rainParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
         }
-    
+        
         if (rainSoundSource != null)
+        {
             rainSoundSource.volume = active ? 0.6f : 0f;
+        }
     }
 }
