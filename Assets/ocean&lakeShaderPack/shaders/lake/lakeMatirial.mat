@@ -106,7 +106,7 @@ Material:
     - _foam_depth: 10.45
     - _foam_distance: 0.7
     - _foam_power: 1
-    - _foam_scale: 8.79
+    - _foam_scale: 8
     - _foam_speed: 0.01
     - _foam_strength: 0
     - _fresnel_power: 1.12
@@ -115,9 +115,9 @@ Material:
     - _oclussion_strength: 1
     - _offset: 1
     - _refraction_scale: 1
-    - _refraction_speed: 0.01
+    - _refraction_speed: 0.5
     - _refraction_strength: 0.25
-    - _smoothness: 1
+    - _smoothness: 0.8
     - _water_depth: 10
     - _waveBumps_spees: 0.7
     - _waveColor_speed: 4
