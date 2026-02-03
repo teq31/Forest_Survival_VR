@@ -4,11 +4,13 @@ public class WeatherManager : MonoBehaviour
 {
     [Header("Integrari")]
     public DayNightCycle dayNightCycle;
-    public SurvivalManager survivalManager; // optional, îl păstrăm
-    public StressSystem stressSystem;        // calm/agitație (VR + non-VR)
+    public StressSystem stressSystem;
 
-    [Header("Efecte si Audio")]
-    public GameObject rainParticleSystem;
+    [Header("Obiectul de Ploaie (VFX)")]
+    // Aici tragi tot obiectul care contine particulele
+    public GameObject rainGameObject; 
+
+    [Header("Audio")]
     public AudioSource ambianceSource;
     public AudioSource rainSoundSource;
 
@@ -17,37 +19,29 @@ public class WeatherManager : MonoBehaviour
     public AudioClip nightAmbiance;
     public AudioClip rainLoop;
 
-    [Header("Rain rules")]
-    [Tooltip("Rain will play in Night/Dusk only if Stress01 is BELOW this threshold.")]
+    [Header("Reguli")]
     [Range(0f, 1f)]
-    public float maxStressForRain = 0.30f; // calm if stress <= 0.30
-
-    [Tooltip("If true, rain can run during Dusk as well.")]
+    public float maxStressForRain = 0.30f; 
     public bool allowRainInDusk = true;
-
-    [Header("Smoothing")]
-    [Tooltip("Smoothing for stress used by weather (prevents flicker).")]
     public float stressEmaSpeed = 4f;
 
-    private bool isRaining = false;
-    private ParticleSystem rainParticles;
+    // Stare interna
     private float _stressEma01 = 0f;
+    private bool _lastRainState = false; // Tine minte ce am facut in frame-ul trecut
 
     void Start()
     {
-        if (rainParticleSystem != null)
-        {
-            rainParticles = rainParticleSystem.GetComponent<ParticleSystem>();
-            rainParticleSystem.SetActive(true);
+        // 1. Validari
+        if (dayNightCycle == null) dayNightCycle = FindFirstObjectByType<DayNightCycle>();
+        if (stressSystem == null) stressSystem = FindFirstObjectByType<StressSystem>();
 
-            if (rainParticles != null)
-            {
-                var emission = rainParticles.emission;
-                emission.enabled = false;
-                rainParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            }
+        if (rainGameObject == null)
+        {
+            Debug.LogError("CRITIC: Nu ai pus 'Rain GameObject' in Inspector la WeatherManager!");
+            return;
         }
 
+        // 2. Initializare Audio
         if (ambianceSource != null && dayAmbiance != null)
         {
             ambianceSource.clip = dayAmbiance;
@@ -65,20 +59,63 @@ public class WeatherManager : MonoBehaviour
 
         RenderSettings.fog = false;
 
-        if (stressSystem == null) stressSystem = FindFirstObjectByType<StressSystem>();
+        // 3. FORTAM STAREA INITIALA: OPRIT
+        // Indiferent ce s-a intamplat inainte, la Start ploaia dispare.
+        rainGameObject.SetActive(false);
+        _lastRainState = false;
     }
 
     void Update()
     {
-        if (dayNightCycle == null) return;
+        if (dayNightCycle == null || rainGameObject == null) return;
 
-        var state = dayNightCycle.CurrentTimeState;
+        // --- 1. Calculam daca AR TREBUI sa ploua ---
+        var timeState = dayNightCycle.CurrentTimeState;
+        
+        bool isNightOrDusk = (timeState == DayNightCycle.TimeState.Night) ||
+                             (allowRainInDusk && timeState == DayNightCycle.TimeState.Dusk);
 
-        HandleAmbianceSwitch(state);
-        HandleWeather(state);
+        float stress01 = (stressSystem != null) ? Mathf.Clamp01(stressSystem.Stress01) : 0f;
+        
+        // Smoothing pentru stres
+        _stressEma01 = Mathf.Lerp(_stressEma01, stress01, 1f - Mathf.Exp(-stressEmaSpeed * Time.deltaTime));
+
+        bool isCalm = (_stressEma01 <= maxStressForRain);
+        
+        bool shouldRain = isNightOrDusk && isCalm;
+
+        // --- 2. Aplicam decizia (Doar Activam/Dezactivam obiectul) ---
+        // Verificam daca starea s-a schimbat fata de frame-ul trecut sau fata de realitate
+        if (shouldRain != _lastRainState || rainGameObject.activeSelf != shouldRain)
+        {
+            ApplyRainState(shouldRain);
+        }
+
+        // --- 3. Audio (Ambianta Zi/Noapte) ---
+        HandleAmbiance(timeState);
     }
 
-    void HandleAmbianceSwitch(DayNightCycle.TimeState state)
+    void ApplyRainState(bool isRaining)
+    {
+        _lastRainState = isRaining;
+        
+        // AICI E TRUCUL: Stingem/Aprindem obiectul cu totul.
+        // Nu mai exista "StopEmitting", "Clear", "Play". Doar ON/OFF.
+        rainGameObject.SetActive(isRaining);
+        
+        RenderSettings.fog = isRaining;
+
+        // Audio volum
+        if (rainSoundSource != null)
+        {
+            rainSoundSource.volume = isRaining ? 0.6f : 0f;
+        }
+        
+        // Debug util
+        // Debug.Log($"[Weather] Ploaie setata la: {isRaining}");
+    }
+
+    void HandleAmbiance(DayNightCycle.TimeState state)
     {
         AudioClip targetClip =
             (state == DayNightCycle.TimeState.Night || state == DayNightCycle.TimeState.Dusk)
@@ -89,47 +126,6 @@ public class WeatherManager : MonoBehaviour
         {
             ambianceSource.clip = targetClip;
             ambianceSource.Play();
-        }
-    }
-
-    void HandleWeather(DayNightCycle.TimeState state)
-    {
-        bool isNightOrDusk = (state == DayNightCycle.TimeState.Night) ||
-                             (allowRainInDusk && state == DayNightCycle.TimeState.Dusk);
-
-        float stress01 = (stressSystem != null) ? Mathf.Clamp01(stressSystem.Stress01) : 0f;
-        _stressEma01 = Mathf.Lerp(_stressEma01, stress01, 1f - Mathf.Exp(-stressEmaSpeed * Time.deltaTime));
-
-        bool isCalm = (_stressEma01 <= maxStressForRain);
-        bool shouldRainNow = isNightOrDusk && isCalm;
-
-        if (shouldRainNow && !isRaining) SetRainActive(true);
-        else if (!shouldRainNow && isRaining) SetRainActive(false);
-    }
-
-    void SetRainActive(bool active)
-    {
-        isRaining = active;
-        RenderSettings.fog = active;
-
-        if (rainParticles != null)
-        {
-            var emission = rainParticles.emission;
-            emission.enabled = active;
-
-            if (active)
-            {
-                if (!rainParticles.isPlaying) rainParticles.Play(true);
-            }
-            else
-            {
-                rainParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            }
-        }
-
-        if (rainSoundSource != null)
-        {
-            rainSoundSource.volume = active ? 0.6f : 0f;
         }
     }
 }

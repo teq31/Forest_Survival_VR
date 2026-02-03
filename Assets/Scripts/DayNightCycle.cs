@@ -186,9 +186,9 @@ public class DayNightCycle : MonoBehaviour
         string phaseName = currentState.ToString();
         
         string durationLabel = (currentState == TimeState.Dusk || currentState == TimeState.Dawn) 
-            ? $"Tranzitie: {transitionPhaseDuration:F1} secunde"
-            : $"Faza Completa: {fullPhaseDuration:F1} secunde";
+            ? $"Transition: {transitionPhaseDuration:F1} seconds"
+            : $"Complete phase: {fullPhaseDuration:F1} seconds";
 
-        timerText.text = $"Faza: {phaseName}\n{durationLabel}\nRamase: {minutes:00}:{seconds:00}\nProgres: {timeOfDay:F2}";
+        timerText.text = $"Phase: {phaseName}\n{durationLabel}\nRemaining: {minutes:00}:{seconds:00}\nProgress: {timeOfDay:F2}";
     }
 }
