@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.XR;
 
 public class CampfireIgnite : MonoBehaviour
 {
@@ -9,184 +10,114 @@ public class CampfireIgnite : MonoBehaviour
 
     [Header("Ignite Settings")]
     [SerializeField] private KeyCode igniteKey = KeyCode.F;
+    [SerializeField] private float triggerThreshold = 0.8f;
     [SerializeField] private float lightIntensityOn = 4f;
     [SerializeField] private float lightRangeOn = 9f;
 
     [Header("Debug")]
     [SerializeField] private bool enableDebug = true;
-    [SerializeField] private bool logUpdateWhenInRange = true;
-    [SerializeField] private bool useRootTagCheck = true; // XR-friendly
+    [SerializeField] private bool useRootTagCheck = true;
     [SerializeField] private string playerTag = "Player";
 
     private bool playerInRange;
     private bool isLit;
+    private bool triggerWasPressed;
 
-    private void Awake()
+    private InputDevice rightHand;
+
+    void Start()
     {
-        Log($"Awake on '{name}'. Scene object active={gameObject.activeInHierarchy}");
-        ValidateSetup();
         StopFx();
+        TryGetRightHand();
     }
 
-    private void OnEnable()
+    void Update()
     {
-        Log($"OnEnable on '{name}'.");
-    }
+        if (isLit || !playerInRange) return;
 
-    private void Start()
-    {
-        Log($"Start on '{name}'. Press '{igniteKey}' while in trigger range.");
-    }
-
-    private void Update()
-    {
-        if (isLit) return;
-
-        // Key detection debug
-        if (Input.GetKeyDown(igniteKey))
-            Log($"KeyDown detected: {igniteKey} (focus should be on Game view). playerInRange={playerInRange}");
-
-        if (playerInRange)
+        // NON-VR ? tastatura
+        if (!XRSettings.isDeviceActive)
         {
-            if (logUpdateWhenInRange)
-                Log($"In range. Waiting for '{igniteKey}'. isLit={isLit}");
-
             if (Input.GetKeyDown(igniteKey))
+            {
+                Log("Ignite via keyboard (F)");
                 Ignite();
+            }
+            return;
         }
+
+        // VR ? trigger
+        if (!rightHand.isValid)
+            TryGetRightHand();
+
+        if (rightHand.isValid &&
+            rightHand.TryGetFeatureValue(CommonUsages.trigger, out float triggerValue))
+        {
+            bool pressed = triggerValue > triggerThreshold;
+
+            if (pressed && !triggerWasPressed)
+            {
+                Log("Ignite via VR trigger");
+                Ignite();
+            }
+
+            triggerWasPressed = pressed;
+        }
+    }
+
+    void TryGetRightHand()
+    {
+        rightHand = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
+        Log($"Right hand valid: {rightHand.isValid}");
     }
 
     private void Ignite()
     {
-        Log("Ignite() called.");
         isLit = true;
 
-        if (fireParticles != null)
-        {
-            fireParticles.Play(true);
-            Log($"fireParticles.Play() ok. isPlaying={fireParticles.isPlaying}");
-        }
-        else Log("fireParticles is NULL");
+        if (fireParticles) fireParticles.Play(true);
+        if (smokeParticles) smokeParticles.Play(true);
 
-        if (smokeParticles != null)
-        {
-            smokeParticles.Play(true);
-            Log($"smokeParticles.Play() ok. isPlaying={smokeParticles.isPlaying}");
-        }
-        else Log("smokeParticles is NULL");
-
-        if (fireLight != null)
+        if (fireLight)
         {
             fireLight.enabled = true;
             fireLight.intensity = lightIntensityOn;
             fireLight.range = lightRangeOn;
-            Log($"fireLight enabled. intensity={fireLight.intensity}, range={fireLight.range}");
         }
-        else Log("fireLight is NULL");
     }
 
     private void StopFx()
     {
-        Log("StopFx() called.");
-
-        if (fireParticles != null)
-        {
+        if (fireParticles)
             fireParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            Log("fireParticles stopped.");
-        }
-        else Log("fireParticles is NULL");
 
-        if (smokeParticles != null)
-        {
+        if (smokeParticles)
             smokeParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            Log("smokeParticles stopped.");
-        }
-        else Log("smokeParticles is NULL");
 
-        if (fireLight != null)
+        if (fireLight)
         {
             fireLight.enabled = false;
             fireLight.intensity = 0f;
-            Log("fireLight disabled.");
         }
-        else Log("fireLight is NULL");
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        LogTrigger("ENTER", other);
-
-        bool isPlayer = IsPlayerCollider(other);
-        Log($"ENTER check -> isPlayer={isPlayer}");
-
-        if (isPlayer)
-        {
+        if (IsPlayerCollider(other))
             playerInRange = true;
-            Log("playerInRange set TRUE.");
-        }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        LogTrigger("EXIT", other);
-
-        bool isPlayer = IsPlayerCollider(other);
-        Log($"EXIT check -> isPlayer={isPlayer}");
-
-        if (isPlayer)
-        {
+        if (IsPlayerCollider(other))
             playerInRange = false;
-            Log("playerInRange set FALSE.");
-        }
     }
 
     private bool IsPlayerCollider(Collider other)
     {
-        if (other == null) return false;
-
-        if (!useRootTagCheck)
-            return other.CompareTag(playerTag);
-
-        // XR-friendly: collider is often on a child, but root is tagged
+        if (!other) return false;
         Transform root = other.transform.root;
-        if (root == null) return other.CompareTag(playerTag);
-
-        return root.CompareTag(playerTag) || other.CompareTag(playerTag);
-    }
-
-    private void ValidateSetup()
-    {
-        // Collider / Rigidbody sanity checks
-        Collider col = GetComponent<Collider>();
-        if (col == null) Log("WARNING: No Collider on campfire object. Triggers will not work.");
-        else Log($"Collider found: {col.GetType().Name}, isTrigger={col.isTrigger}");
-
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb == null) Log("WARNING: No Rigidbody on campfire object. Trigger may not fire depending on other object.");
-        else Log($"Rigidbody found: isKinematic={rb.isKinematic}, useGravity={rb.useGravity}");
-
-        // Reference checks
-        Log($"Refs: fireParticles={(fireParticles ? fireParticles.name : "NULL")}, " +
-            $"smokeParticles={(smokeParticles ? smokeParticles.name : "NULL")}, " +
-            $"fireLight={(fireLight ? fireLight.name : "NULL")}");
-
-        // Layer info
-        Log($"Campfire layer={LayerMask.LayerToName(gameObject.layer)}({gameObject.layer})");
-    }
-
-    private void LogTrigger(string type, Collider other)
-    {
-        if (!enableDebug) return;
-
-        string otherName = other ? other.name : "NULL";
-        string otherTag = other ? other.tag : "NULL";
-        int otherLayer = other ? other.gameObject.layer : -1;
-        string otherLayerName = other ? LayerMask.LayerToName(otherLayer) : "NULL";
-        string otherRoot = (other && other.transform.root) ? other.transform.root.name : "NULL";
-
-        Debug.Log($"[CampfireIgnite] Trigger {type} on '{name}' by '{otherName}' tag='{otherTag}' " +
-                  $"layer='{otherLayerName}'({otherLayer}) root='{otherRoot}'",
-                  this);
+        return root && root.CompareTag(playerTag);
     }
 
     private void Log(string msg)
