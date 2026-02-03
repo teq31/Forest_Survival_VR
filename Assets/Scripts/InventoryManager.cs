@@ -8,6 +8,9 @@ public class InventoryManager : MonoBehaviour
 
     private SurvivalManager survivalManager;
 
+    // --- NOU: Limita maximă de resurse ---
+    private const int MAX_RESOURCE_LIMIT = 10;
+
     [Header("UI References")]
     public GameObject inventoryPanel;
     public Button openInventoryButton;
@@ -21,7 +24,7 @@ public class InventoryManager : MonoBehaviour
 
     [Header("Consumables UI")]
     public Button drinkButton;
-    public Button eatButton; // NOU: Butonul pentru mancare
+    public Button eatButton;
 
     [Header("Crafting Prefabs & Spawn Points")]
     public GameObject campfirePrefab;
@@ -72,7 +75,6 @@ public class InventoryManager : MonoBehaviour
         if (craftTorchButton != null) craftTorchButton.onClick.AddListener(CraftTorch);
 
         if (drinkButton != null) drinkButton.onClick.AddListener(ConsumeWaterItem);
-        // NOU: Conectam butonul de mancare
         if (eatButton != null) eatButton.onClick.AddListener(ConsumeFoodItem);
 
         UpdateInventoryUI();
@@ -98,21 +100,17 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    // NOU: Logica pentru mancat
     public void ConsumeFoodItem()
     {
         if (foodCount > 0)
         {
-            // 1. Scadem mancarea
             foodCount--;
 
-            // 2. Apelam SurvivalManager pentru a creste bara de Hunger
             if (survivalManager != null)
             {
                 survivalManager.ConsumeFood();
             }
 
-            // 3. Actualizam UI
             UpdateInventoryUI();
             Debug.Log("Ai mancat! Food count: " + foodCount);
         }
@@ -162,26 +160,75 @@ public class InventoryManager : MonoBehaviour
         addToInventoryButton.gameObject.SetActive(shouldShow);
     }
 
+    // --- MODIFICARE PRINCIPALĂ AICI ---
     private void AddCurrentItemToInventory()
     {
+        // Cazul 1: Colectam un obiect fizic (Stick, Stone, Food, Water Bottle)
         if (currentItem != null)
         {
+            bool itemAdded = false; // Verificam daca am reusit sa adaugam
+
             switch (currentItem.itemType)
             {
-                case ItemType.Stick: stickCount++; break;
-                case ItemType.Stone: stoneCount++; break;
-                case ItemType.Food: foodCount++; break;
-                case ItemType.Water: waterCount++; break;
+                case ItemType.Stick:
+                    if (stickCount < MAX_RESOURCE_LIMIT)
+                    {
+                        stickCount++;
+                        itemAdded = true;
+                    }
+                    break;
+                case ItemType.Stone:
+                    if (stoneCount < MAX_RESOURCE_LIMIT)
+                    {
+                        stoneCount++;
+                        itemAdded = true;
+                    }
+                    break;
+                case ItemType.Food:
+                    if (foodCount < MAX_RESOURCE_LIMIT)
+                    {
+                        foodCount++;
+                        itemAdded = true;
+                    }
+                    break;
+                case ItemType.Water:
+                    if (waterCount < MAX_RESOURCE_LIMIT)
+                    {
+                        waterCount++;
+                        itemAdded = true;
+                    }
+                    break;
             }
-            UpdateInventoryUI();
-            Destroy(currentItem.gameObject);
-            currentItem = null;
+
+            if (itemAdded)
+            {
+                UpdateInventoryUI();
+                // Distrugem obiectul doar daca l-am adaugat in inventar
+                Destroy(currentItem.gameObject);
+                currentItem = null;
+                Debug.Log("Obiect adaugat in inventar.");
+            }
+            else
+            {
+                Debug.Log("Inventar PLIN pentru acest tip de resursă! (Max " + MAX_RESOURCE_LIMIT + ")");
+                // Aici poti adauga un mesaj pe ecran pentru jucator (ex: MessageDirector)
+            }
         }
+        // Cazul 2: Luam apa din lac/rau (fara obiect fizic)
         else if (isNearWater)
         {
-            waterCount++;
-            UpdateInventoryUI();
+            if (waterCount < MAX_RESOURCE_LIMIT)
+            {
+                waterCount++;
+                UpdateInventoryUI();
+                Debug.Log("Apa colectata din sursa.");
+            }
+            else
+            {
+                Debug.Log("Nu mai poti cara apa! (Max " + MAX_RESOURCE_LIMIT + ")");
+            }
         }
+
         UpdateAddButtonVisibility();
     }
 
@@ -204,10 +251,10 @@ public class InventoryManager : MonoBehaviour
 
     private void UpdateInventoryUI()
     {
-        if (stickCountText != null) stickCountText.text = "Sticks: " + stickCount;
-        if (stoneCountText != null) stoneCountText.text = "Stones: " + stoneCount;
-        if (foodCountText != null) foodCountText.text = "Food: " + foodCount;
-        if (waterCountText != null) waterCountText.text = "Water: " + waterCount;
+        if (stickCountText != null) stickCountText.text = "Sticks: " + stickCount + "/" + MAX_RESOURCE_LIMIT;
+        if (stoneCountText != null) stoneCountText.text = "Stones: " + stoneCount + "/" + MAX_RESOURCE_LIMIT;
+        if (foodCountText != null) foodCountText.text = "Food: " + foodCount + "/" + MAX_RESOURCE_LIMIT;
+        if (waterCountText != null) waterCountText.text = "Water: " + waterCount + "/" + MAX_RESOURCE_LIMIT;
     }
 
     private void ToggleCraftPanel()

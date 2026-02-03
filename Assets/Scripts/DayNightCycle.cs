@@ -1,9 +1,13 @@
 using UnityEngine;
 using TMPro;
+using System;
 
 public class DayNightCycle : MonoBehaviour
 {
     public enum TimeState { Day, Dusk, Night, Dawn }
+    
+    // Event triggered when player survives the night (Dawn -> Day transition)
+    public event Action OnNightSurvived;
     
     // Proprietate publică pentru a permite accesul altor scripturi (ex: WeatherManager) la starea curentă
     public TimeState CurrentTimeState => currentState;
@@ -40,6 +44,12 @@ public class DayNightCycle : MonoBehaviour
 
     private float dayIntensity = 1f;
     private float nightIntensity = 0.1f;
+    
+    // Track if first night has been survived (for victory condition)
+    private bool hasTriggeredVictory = false;
+    
+    // Timer propriu pentru ciclu (se resetează la restart, spre deosebire de Time.time)
+    private float _totalElapsedTime = 0f;
 
     void Start()
     {
@@ -55,11 +65,12 @@ public class DayNightCycle : MonoBehaviour
     void Update()
     {
         timeElapsedInPhase += Time.deltaTime;
+        _totalElapsedTime += Time.deltaTime;
         
         float currentPhaseDuration = GetCurrentPhaseDuration(currentState);
 
-        // Calculează progresul total (0.0 la 1.0)
-        timeOfDay = Mathf.Repeat(Time.time / totalDurationSeconds, 1f);
+        // Calculează progresul total (0.0 la 1.0) - folosim timer propriu care se resetează la restart
+        timeOfDay = Mathf.Repeat(_totalElapsedTime / totalDurationSeconds, 1f);
         
         HandleSkyboxBlending(); 
         RotateLightGlobal(); 
@@ -74,6 +85,14 @@ public class DayNightCycle : MonoBehaviour
 
     void SwitchPhase(TimeState newState)
     {
+        // Check for victory condition: Dawn -> Day transition (survived the night!)
+        if (currentState == TimeState.Dawn && newState == TimeState.Day && !hasTriggeredVictory)
+        {
+            hasTriggeredVictory = true;
+            Debug.Log("[DayNightCycle] Player survived the night! Triggering OnNightSurvived event.");
+            OnNightSurvived?.Invoke();
+        }
+        
         currentState = newState;
         timeElapsedInPhase = 0f;
         

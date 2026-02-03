@@ -10,9 +10,9 @@ public class WeatherManager : MonoBehaviour
     // Aici tragi tot obiectul care contine particulele
     public GameObject rainGameObject; 
 
-    [Header("Audio")]
-    public AudioSource ambianceSource;
-    public AudioSource rainSoundSource;
+    //[Header("Audio")]
+    //public AudioSource ambianceSource;
+    //public AudioSource rainSoundSource;
 
     [Header("Clipuri")]
     public AudioClip dayAmbiance;
@@ -39,22 +39,6 @@ public class WeatherManager : MonoBehaviour
         {
             Debug.LogError("CRITIC: Nu ai pus 'Rain GameObject' in Inspector la WeatherManager!");
             return;
-        }
-
-        // 2. Initializare Audio
-        if (ambianceSource != null && dayAmbiance != null)
-        {
-            ambianceSource.clip = dayAmbiance;
-            ambianceSource.loop = true;
-            ambianceSource.Play();
-        }
-
-        if (rainSoundSource != null && rainLoop != null)
-        {
-            rainSoundSource.clip = rainLoop;
-            rainSoundSource.loop = true;
-            rainSoundSource.volume = 0f;
-            rainSoundSource.Play();
         }
 
         RenderSettings.fog = false;
@@ -106,10 +90,6 @@ public class WeatherManager : MonoBehaviour
         RenderSettings.fog = isRaining;
 
         // Audio volum
-        if (rainSoundSource != null)
-        {
-            rainSoundSource.volume = isRaining ? 0.6f : 0f;
-        }
         
         // Debug util
         // Debug.Log($"[Weather] Ploaie setata la: {isRaining}");
@@ -121,11 +101,5 @@ public class WeatherManager : MonoBehaviour
             (state == DayNightCycle.TimeState.Night || state == DayNightCycle.TimeState.Dusk)
                 ? nightAmbiance
                 : dayAmbiance;
-
-        if (ambianceSource != null && targetClip != null && ambianceSource.clip != targetClip)
-        {
-            ambianceSource.clip = targetClip;
-            ambianceSource.Play();
-        }
     }
 }
